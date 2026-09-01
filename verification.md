@@ -53,20 +53,45 @@
 - Only API call in frontend is fetch(`${API_BASE_URL}/api/metrics`) in App.tsx:16
 - Conclusion: 4 backend endpoints (/summary, /categories/top, /comparison, /alerts) are fully implemented but not consumed by the UI - likely built for future features or left over from earlier development
 
-## Phase 2: Conventions and Risky Patterns
+## Phase 2: Conventions and Risky Patterns (Categorized)
 
-### Conventions found
-- Backend: snake_case functions, PascalCase Pydantic models, all logic in one routes.py file
-- Frontend: kebab-case filenames, PascalCase named-export components, shared types in financial-types.ts, pure logic in financial-utils.ts
-- Every backend endpoint repeats the same pattern: generate mock data -> filter -> transform -> return
-- No error handling in backend (no try/except, no HTTPException) - relies only on Pydantic validation
-- Frontend has exactly one error path (App.tsx:18-38), generic message, no retry logic
+### Architecture
+- Backend: all logic in one flat routes.py file (models + business logic + endpoints together)
+- No persistence layer - "database" is randomly regenerated mock data on every request (routes.py:91-99)
+- Frontend/backend type duplication - FinancialMovement defined separately in Pydantic and TypeScript, no shared contract (routes.py:23-28, financial-types.ts:5-11)
 
-### Risky patterns identified
-1. Mock data generator uses global random state - not safe under concurrent requests (routes.py:91-99)
-2. Same generate-filter-transform logic duplicated across 7 endpoints (routes.py) - a fix in one place must be manually repeated in the others
-3. FinancialMovement type defined separately in backend (Pydantic) and frontend (TypeScript) - no shared contract, can silently drift out of sync
-4. Frontend recalculates KPIs client-side (financial-utils.ts) instead of using backend's /summary endpoint - profit formula logic exists in two places that could diverge
-5. mock-data.ts exports mockMovements, confirmed unused anywhere in the codebase - dead code that could mislead future devs/agents
-6. get_metrics_comparison has no validation that start_date <= end_date - reversed range produces invalid results with no error (routes.py:316-322)
-7. Zero-division protection is inconsistent - some functions guard against it, others (like detect_outcome_alerts) rely on a single unguarded check (routes.py:228) that could be accidentally removed
+### Naming
+- Backend: snake_case functions/variables, PascalCase models
+- Frontend: kebab-case filenames, PascalCase named-export components
+
+### Code Duplication / DX (Developer Experience)
+- Same generate -> filter -> transform pattern copy-pasted across 7 backend endpoints (routes.py:248-390)
+- Frontend recalculates KPIs client-side (financial-utils.ts) duplicating logic that already exists in backend's /summary endpoint
+- mock-data.ts exports mockMovements, confirmed unused anywhere in codebase (dead code)
+
+### Error Handling / Validation
+- No error handling in backend at all - no try/except, no HTTPException (routes.py)
+- get_metrics_comparison has no validation that start_date <= end_date (routes.py:316-322)
+- Zero-division protection inconsistent - some functions guard it, others (detect_outcome_alerts) rely on one unguarded check (routes.py:228)
+- Frontend has exactly one generic error path, no retry, no per-field errors (App.tsx:18-38)
+
+### Testing
+- test_routes.py tests backend route status/JSON shape via TestClient
+- financial-utils.test.ts tests only pure functions, not components
+
+### Proposed Rules (draft, to be implemented in Phase 3)
+
+1. "Always add try/except or HTTPException error handling to new backend endpoints in routes.py"
+   - Addresses: no error handling exists in backend currently
+
+2. "Validate that start_date <= end_date before computing date ranges in comparison/summary logic"
+   - Addresses: get_metrics_comparison has no validation (routes.py:316-322)
+
+3. "Before adding new backend logic, check if it duplicates the generate->filter->transform pattern already used in routes.py; extract shared logic instead of copy-pasting"
+   - Addresses: pattern duplicated across 7 endpoints (routes.py:248-390)
+
+4. "Do not use mock-data.ts (mockMovements) as a data source - confirmed unused dead code"
+   - Addresses: dead code risk in mock-data.ts
+
+5. "When modifying FinancialMovement fields, update both routes.py (Pydantic) and financial-types.ts (TypeScript) together"
+   - Addresses: type duplication with no shared contract (routes.py:23-28, financial-types.ts:5-11)
