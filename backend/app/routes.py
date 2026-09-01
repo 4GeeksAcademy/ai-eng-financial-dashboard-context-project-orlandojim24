@@ -5,7 +5,7 @@ from collections import defaultdict
 from datetime import date, timedelta
 from typing import Literal
 
-from fastapi import APIRouter, Query
+from fastapi import APIRouter, HTTPException, Query
 from pydantic import BaseModel
 
 OperationType = Literal["income", "outcome"]
@@ -60,6 +60,10 @@ class MetricsAlert(BaseModel):
     outcome_total: float
     baseline_average: float
     increase_ratio: float
+
+
+class MetricsCount(BaseModel):
+    count: int
 
 
 def _year_for_month(month: int, today: date) -> int:
@@ -263,6 +267,24 @@ def get_metrics(
 def get_metrics_facets() -> MetricsFacets:
     movements = generate_mock_movements(seed=42)
     return build_metrics_facets(movements)
+
+
+@router.get("/api/metrics/count", response_model=MetricsCount)
+def get_metrics_count(
+    start_date: date | None = Query(default=None),
+    end_date: date | None = Query(default=None),
+    category: Category | None = Query(default=None),
+    operation_type: OperationType | None = Query(default=None),
+) -> MetricsCount:
+    if start_date is not None and end_date is not None and start_date > end_date:
+        raise HTTPException(
+            status_code=400, detail="start_date must be before end_date")
+
+    movements = generate_mock_movements(seed=42)
+    filtered = filter_movements(
+        movements, start_date, end_date, category, operation_type
+    )
+    return MetricsCount(count=len(filtered))
 
 
 @router.get("/api/metrics/summary", response_model=list[MetricsSummaryItem])
