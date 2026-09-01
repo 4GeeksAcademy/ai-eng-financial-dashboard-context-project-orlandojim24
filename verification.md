@@ -52,3 +52,21 @@
 - Searched entire frontend codebase for references to these endpoints - no matches found
 - Only API call in frontend is fetch(`${API_BASE_URL}/api/metrics`) in App.tsx:16
 - Conclusion: 4 backend endpoints (/summary, /categories/top, /comparison, /alerts) are fully implemented but not consumed by the UI - likely built for future features or left over from earlier development
+
+## Phase 2: Conventions and Risky Patterns
+
+### Conventions found
+- Backend: snake_case functions, PascalCase Pydantic models, all logic in one routes.py file
+- Frontend: kebab-case filenames, PascalCase named-export components, shared types in financial-types.ts, pure logic in financial-utils.ts
+- Every backend endpoint repeats the same pattern: generate mock data -> filter -> transform -> return
+- No error handling in backend (no try/except, no HTTPException) - relies only on Pydantic validation
+- Frontend has exactly one error path (App.tsx:18-38), generic message, no retry logic
+
+### Risky patterns identified
+1. Mock data generator uses global random state - not safe under concurrent requests (routes.py:91-99)
+2. Same generate-filter-transform logic duplicated across 7 endpoints (routes.py) - a fix in one place must be manually repeated in the others
+3. FinancialMovement type defined separately in backend (Pydantic) and frontend (TypeScript) - no shared contract, can silently drift out of sync
+4. Frontend recalculates KPIs client-side (financial-utils.ts) instead of using backend's /summary endpoint - profit formula logic exists in two places that could diverge
+5. mock-data.ts exports mockMovements, confirmed unused anywhere in the codebase - dead code that could mislead future devs/agents
+6. get_metrics_comparison has no validation that start_date <= end_date - reversed range produces invalid results with no error (routes.py:316-322)
+7. Zero-division protection is inconsistent - some functions guard against it, others (like detect_outcome_alerts) rely on a single unguarded check (routes.py:228) that could be accidentally removed
