@@ -2,22 +2,22 @@
 
 ## Frontend
 - React with TypeScript
-- Vite (dev server + build tool)
-- Vite dev-server proxy forwards /api requests to the backend (avoids CORS issues in local/dev)
-- File naming: kebab-case (e.g. kpi-card.tsx)
-- Components: PascalCase named exports (not default exports)
+- Vite for the dev server and build
+- Vite's dev server proxies /api requests to the backend, so there's no CORS issues locally
+- Files are named kebab-case (like kpi-card.tsx)
+- Components use PascalCase named exports, not default exports
 
 ## Backend
-- Python, FastAPI
-- Pydantic models for request/response validation
-- No database - all data is generated in-memory via generate_mock_movements(), no ORM or DB driver present in requirements.txt
+- Python with FastAPI
+- Pydantic models handle request/response validation
+- No database - everything is generated in-memory with generate_mock_movements(), no ORM or DB driver anywhere in requirements.txt
 
 ## Infrastructure
-- Docker Compose runs both services together (docker-compose.yml)
-- Frontend exposed on port 5173
-- Backend exposed on port 8000, with auto-generated API docs at /docs (Swagger UI)
-- No environment variables required by default; VITE_API_BASE_URL can optionally override the backend URL
+- Docker Compose runs both frontend and backend together
+- Frontend runs on port 5173
+- Backend runs on port 8000, with Swagger docs auto-generated at /docs
+- No env variables needed by default, but VITE_API_BASE_URL can override the backend URL if needed
 
 ## Testing
-- Backend: test_routes.py using fastapi.testclient.TestClient
-- Frontend: financial-utils.test.ts using vitest (tests pure functions only, not components)
+- Backend tests are in test_routes.py using FastAPI's TestClient
+- Frontend tests are in financial-utils.test.ts using vitest, but only test the pure functions, not the actual components
