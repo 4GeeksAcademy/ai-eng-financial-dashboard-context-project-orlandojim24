@@ -95,3 +95,33 @@
 
 5. "When modifying FinancialMovement fields, update both routes.py (Pydantic) and financial-types.ts (TypeScript) together"
    - Addresses: type duplication with no shared contract (routes.py:23-28, financial-types.ts:5-11)
+
+
+   # API Verification Notes — Phase 1
+
+## Feature 1 — Date Range Filter
+- `/api/metrics/facets` returns `min_date` and `max_date` — matches PM's "available date range." ✅
+- `/api/metrics` already supports optional `start_date`/`end_date` params. ✅
+- Date format is `string` with `format: date` → YYYY-MM-DD. ✅
+- No mismatches found.
+
+## Feature 2 — Anomaly Alerts Table
+- Column names in PM brief differ from API field names (same data, different labels):
+  - "period" → `period`
+  - "recorded outcome" → `outcome_total`
+  - "rolling average of previous 3 periods" → `baseline_average`
+  - "percentage increase" → `increase_ratio`
+  - Resolution (later, in spec): explicitly map each display column to its API field.
+- Threshold range (0.01–1.0) is NOT enforced by the API.
+  - API only enforces `minimum: 0`, no maximum, default `0.3`.
+  - Resolution (later, in spec): frontend must validate/clamp input to 0.01–1.0.
+- Empty state message is a UI requirement, not an API concern — no mismatch, just a note for Phase 3.
+- Date range filtering is supported by `/api/metrics/alerts` (`start_date`/`end_date`). ✅
+- Additional finding: `period` field format varies based on `group_by` param — 'YYYY-MM' (month), 'YYYY-Www' (week), or 'YYYY-MM-DD' (day). Not part of original PM claims, but useful context confirmed via OpenAPI schema.
+
+## Feature 3 — B2B vs B2C Comparison
+- `category` and `total_amount` fields match PM's "category name" and "total income." ✅
+- "Percentage of the group total" is NOT returned by `/api/metrics/categories/top`.
+  - Resolution (later, in spec): must be calculated on the frontend (each category's `total_amount` ÷ sum of all returned `total_amount`s).
+- `/api/metrics/facets` provides the `categories` list. ✅
+- Date range filtering supported (`start_date`/`end_date`). ✅
