@@ -38,6 +38,13 @@ This directory contains the design specifications and TypeScript definitions for
   - Render the filter bar in a degraded state with a non-blocking warning banner: *"Unable to load dynamic date boundaries."*
   - Enable date pickers with fallback permissive boundaries (e.g. past 2 years up to today) and show a "Retry" button to reload facets.
 
+#### Edge Case 3: Single-Date Input (Open-Ended Ranges)
+- **Condition**: User provides only one boundary (`start_date` specified while `end_date` is empty, or `end_date` specified while `start_date` is empty).
+- **UI Behavior**:
+  - **Only `start_date` provided**: The dashboard queries and displays all data from `start_date` onward through the latest available date (`facets.max_date`). The End Date input displays a placeholder showing the open boundary (e.g., *"Through latest"*).
+  - **Only `end_date` provided**: The dashboard queries and displays all data from the earliest available date (`facets.min_date`) through `end_date`. The Start Date input displays a placeholder showing the open boundary (e.g., *"From earliest"*).
+  - The active filter indicator reflects the half-open interval (e.g., *"Since 2026-03-01"* or *"Up to 2026-08-31"*).
+
 ---
 
 ## 2. Feature 2: Outcome Anomaly Alerts
